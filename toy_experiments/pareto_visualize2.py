@@ -1,7 +1,14 @@
 import numpy as np
 
 from problems.toy_biobjective import *
-from solvers import epo_search, pareto_mtl_search, linscalar, moo_mtl_search, moo_mtl_pp_search
+from solvers import (
+    epo_search, 
+    pareto_mtl_search, 
+    linscalar, 
+    moo_mtl_search, 
+    moo_mtl_pp_search,
+    pcgrad_search
+)
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -20,9 +27,8 @@ if __name__ == '__main__':
 
     pmtl_K = 5
     pmtl_refs = circle_points(pmtl_K, 0, np.pi / 2)
-    # methods = ['MGDA', 'MGDA++']
     methods = ['MGDA', 'MGDA++']
-    # latexify(fig_width=2., fig_height=1.55)
+
     ss, mi = 0.1, 100
     pf = create_pf()
     ps = np.linspace(-1 / np.sqrt(2), 1 / np.sqrt(2), K+1)
@@ -50,18 +56,13 @@ if __name__ == '__main__':
             x0 = ps[i] + np.random.uniform(-1, 1, 2)
             i+=1
 
-
-
             l0, _ = concave_fun_eval(x0)
             if k == 0 and i_method == 0:
                 ax.scatter([l0[0]], [l0[1]], c='g', s=70, alpha=0.9,
-                    zorder=2, label=r'$F(x_0)$')  
-            #     # axs[1].scatter([x0[0]], [x0[1]], c='g', s=35, alpha=0.9,
-                #     zorder=2, label=r'$l(\theta^0)$')  
+                    zorder=2, label=r'$F(x_0)$')
+
             ax.scatter([l0[0]], [l0[1]], c='g', s=70, alpha=0.9,
                     zorder=2)
-            # axs[1].scatter([x0[0]], [x0[1]], c='g', s=35, alpha=0.9,
-                    # zorder=2)  
             if method == 'EPO':
                 _, res = epo_search(concave_fun_eval, r=r, x=x0,
                                     step_size=ss, max_iters=100)
@@ -81,6 +82,10 @@ if __name__ == '__main__':
             if method == "MGDA++":
                 _, res = moo_mtl_pp_search(concave_fun_eval, x=x0,
                                         step_size=0.2, max_iters=150, eps=1e-2)
+            if method == "PCGrad":
+                _, res = pcgrad_search(concave_fun_eval, x=x0,
+                                        step_size=0.2, max_iters=150)
+
             last_ls.append(res['ls'][-1])
             ls = res['ls']
             xs.append(res['xs'])

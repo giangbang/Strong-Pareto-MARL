@@ -1,9 +1,14 @@
 import numpy as np
 
-
-
 from problems.toy_biobjective3 import *
-from solvers import epo_search, pareto_mtl_search, linscalar, moo_mtl_search, moo_mtl_pp_search
+from solvers import (
+    epo_search, 
+    pareto_mtl_search, 
+    linscalar, 
+    moo_mtl_search, 
+    moo_mtl_pp_search,
+    pcgrad_search
+)
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -26,9 +31,8 @@ if __name__ == '__main__':
 
     pmtl_K = 5
     pmtl_refs = circle_points(pmtl_K, 0, np.pi / 2)
-    # methods = ['MGDA', 'MGDA++']
     methods = ['MGDA', 'MGDA++']
-    # latexify(fig_width=2., fig_height=1.55)
+
     ss, mi = 0.1, 100
     pf = create_pf()
     ps = np.linspace(-1 / np.sqrt(2), 1 / np.sqrt(2), K+1)
@@ -46,7 +50,6 @@ if __name__ == '__main__':
 
     eps=0.01
 
-    # ax.plot(pf[:, 0], pf[:, 1], lw=3, c='k', label='Pareto Front', linestyle='--', alpha=0.7)
     for i_method, method in enumerate(methods):
         i=0
         xs = []
@@ -64,8 +67,6 @@ if __name__ == '__main__':
             if k == len(rs)-1:
                 x0 = np.array([1.5,2])
             i+=1
-
-
 
             l0, _ = concave_fun_eval(x0)
             if k == 0 and i_method == 0:
@@ -93,12 +94,15 @@ if __name__ == '__main__':
             if method == "MGDA++":
                 _, res = moo_mtl_pp_search(concave_fun_eval, x=x0,
                                         step_size=0.01, max_iters=500, eps=eps)
+            if method == "PCGrad":
+                _, res = pcgrad_search(concave_fun_eval, x=x0,
+                                        step_size=0.01, max_iters=500)
+            
             last_ls.append(res['ls'][-1])
             ls = res['ls']
             xs.append(res['xs'])
 
         last_ls = np.stack(last_ls)
-
 
         # the second plot
         
@@ -158,7 +162,7 @@ if __name__ == '__main__':
     circle2 = plt.Circle((1, 1), eps, color='blue', alpha=0.6, linestyle='--', fill=False)
     axins.add_patch(circle2)
 
-    # # sub region of the original image
+    # sub region of the original image
     x1, x2, y1, y2 = 0.945, 1.055, 0.945, 1.055
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)

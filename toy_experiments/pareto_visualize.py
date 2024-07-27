@@ -23,9 +23,8 @@ if __name__ == '__main__':
 
     pmtl_K = 5
     pmtl_refs = circle_points(pmtl_K, 0, np.pi / 2)
-    # methods = ['MGDA', 'MGDA++']
     methods = ['MGDA_adam', 'MGDA++', 'MGDA']
-    # latexify(fig_width=2., fig_height=1.55)
+
     ss, mi = 0.1, 100
     pf = create_pf(m=m)
     for method in methods:
