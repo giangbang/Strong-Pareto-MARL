@@ -10,7 +10,9 @@ def pcgrad_search(multi_obj_fg, x=None,
     for t in range(max_iters):
         f, f_dx = multi_obj_fg(x)
 
-        x = x - step_size * pcgrad_project_conflicting(f_dx)
+        projected = pcgrad_project_conflicting(f_dx)
+        assert projected.shape == x.shape
+        x = x - step_size * projected
         
         fs.append(f)
         xs.append(x)
@@ -19,8 +21,8 @@ def pcgrad_search(multi_obj_fg, x=None,
     return x, res
 
 
-def pcgrad_project_conflicting(f_dx):
-    pc_grad, num_task = copy.deepcopy(f_dx), len(f_dx)
+def pcgrad_project_conflicting(grads):
+    pc_grad = copy.deepcopy(grads)
     
     for g_i in pc_grad:
         random.shuffle(grads)
