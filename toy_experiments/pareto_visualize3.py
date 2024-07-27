@@ -57,15 +57,7 @@ if __name__ == '__main__':
         
         last_ls = []
         for k, r in enumerate(rs):
-            
-            x0 = np.zeros(n)
-            x0[range(0, n, 2)] = 0.3
-            x0[range(1, n, 2)] = -.3
-            x0 += np.random.randn(n)
-
-            x0 = np.random.uniform(2, 2.95, 2)
-            if k == len(rs)-1:
-                x0 = np.array([1.5,2])
+            x0 = np.array([1.5,2])
             i+=1
 
             l0, _ = concave_fun_eval(x0)
@@ -103,10 +95,7 @@ if __name__ == '__main__':
             xs.append(res['xs'])
 
         last_ls = np.stack(last_ls)
-
-        # the second plot
         
-        ax = axs
         delta = 0.025
         x = np.arange(-3.0, 3.0, delta)
         y = np.arange(-3.0, 3.0, delta)
