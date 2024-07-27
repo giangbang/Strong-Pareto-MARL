@@ -1,0 +1,56 @@
+{
+    "map_size": [
+        3,
+        8
+    ],
+    "walls": [
+        [
+            0,
+            3
+        ],
+        [
+            2,
+            3
+        ],
+        [
+            0,
+            6
+        ],
+        [
+            1,
+            6
+        ]
+    ],
+    "agents": [
+        {
+            "start_xy": [
+                1,
+                0
+            ],
+            "target": [
+                1,
+                5
+            ]
+        },
+        {
+            "start_xy": [
+                1,
+                4
+            ],
+            "target": null
+        }
+    ],
+    "doors": [
+        {
+            "position": [
+                1,
+                3
+            ],
+            "switch": [
+                0,
+                7
+            ],
+            "open_on_hold": true
+        }
+    ]
+}

@@ -1,0 +1,60 @@
+{
+    "map_size": [
+        3,
+        8
+    ],
+    "walls": [
+        [
+            0,
+            3
+        ],
+        [
+            2,
+            3
+        ],
+        [
+            0,
+            6
+        ],
+        [
+            1,
+            6
+        ]
+    ],
+    "agents": [
+        {
+            "start_xy": [
+                1,
+                0
+            ],
+            "target": [
+                0,
+                7
+            ]
+        },
+        {
+            "start_xy": [
+                1,
+                4
+            ],
+            "target": null
+        },
+        {
+            "start_xy": [
+                0, 
+                5
+            ],
+            "target": null
+        }, 
+        {
+            "start_xy": [
+                2,
+                6
+            ],
+            "target": null
+        }
+    ],
+    "doors": [
+        
+    ]
+}
