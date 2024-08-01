@@ -40,6 +40,7 @@ class ACTLayer(nn.Module):
             discrete_dim = action_space[1].n
             self.action_outs = nn.ModuleList([DiagGaussian(inputs_dim, continous_dim, use_orthogonal, gain), Categorical(
                 inputs_dim, discrete_dim, use_orthogonal, gain)])
+        print("ActLayer multi_discrete?:", self.multi_discrete)
     
     def forward(self, x, available_actions=None, deterministic=False):
         """
@@ -77,6 +78,7 @@ class ACTLayer(nn.Module):
 
             actions = torch.cat(actions, -1)
             action_log_probs = torch.cat(action_log_probs, -1)
+            action_log_probs = torch.sum(action_log_probs, -1, keepdim=True)
 
         elif self.mujoco_box:
             action_logits = self.action_out(x)
@@ -157,6 +159,8 @@ class ACTLayer(nn.Module):
                     dist_entropy.append(action_logit.entropy().mean())
 
             action_log_probs = torch.cat(action_log_probs, -1) # ! could be wrong
+            action_log_probs = torch.sum(action_log_probs, -1, keepdim=True)
+
             dist_entropy = sum(dist_entropy)/len(dist_entropy)
         
         elif self.mujoco_box:

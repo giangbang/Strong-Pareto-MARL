@@ -31,6 +31,8 @@ class MultiAgentEnv(gym.Env):
         self.observation_callback = observation_callback
         self.info_callback = info_callback
         self.done_callback = done_callback
+        self.cumulative_rewards = np.zeros(len(self.agents))
+        self.cum_prev_tot_rw = np.zeros(len(self.agents))
 
         self.post_step_callback = post_step_callback
 
@@ -135,10 +137,16 @@ class MultiAgentEnv(gym.Env):
                 info['fail'] = env_info['fail']
             info_n.append(info)
 
-        # # all agents get total reward in cooperative case, if shared reward, all agents have the same reward, and reward is sum
+        # all agents get total reward in cooperative case, if shared reward, all agents have the same reward, and reward is sum
         # reward = np.sum(reward_n)
         # if self.shared_reward:
         #     reward_n = [[reward]] * self.n
+        reward_n = np.array(reward_n)
+
+        assert np.prod(reward_n.shape) == np.prod(self.cumulative_rewards.shape)
+        self.cumulative_rewards += reward_n.reshape(*self.cumulative_rewards.shape)
+        for rw, info in zip(self.cum_prev_tot_rw, info_n):
+            info['cumulative_rewards'] = rw
 
         if self.post_step_callback is not None:
             self.post_step_callback(self.world)
@@ -147,6 +155,8 @@ class MultiAgentEnv(gym.Env):
 
     def reset(self):
         self.current_step = 0
+        self.cum_prev_tot_rw = self.cumulative_rewards.copy()
+        self.cumulative_rewards = np.zeros_like(self.cumulative_rewards)
         # reset world
         self.reset_callback(self.world)
         # reset renderer

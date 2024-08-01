@@ -5,9 +5,8 @@ import torch.nn as nn
 from onpolicy.utils.util import get_gard_norm, huber_loss, mse_loss
 from onpolicy.utils.valuenorm import ValueNorm
 from onpolicy.algorithms.utils.util import check
-from onpolicy.utils.min_norm_solvers import MinNormSolver, gradient_normalizers
 
-class R_MAPPO_MGDA():
+class R_MAPPO_MultHead():
     """
     Trainer class for MAPPO to update policies.
     :param args: (argparse.Namespace) arguments containing relevant model, policy, and env information.
@@ -17,12 +16,14 @@ class R_MAPPO_MGDA():
     def __init__(self,
                  args,
                  policy,
-                 device=torch.device("cpu")):
+                 device=torch.device("cpu"),
+                 agent_id:int=None,):
 
         self.device = device
         self.tpdv = dict(dtype=torch.float32, device=device)
         self.policy = policy
         self.args = args
+        self.agent_id = agent_id
 
         self.clip_param = args.clip_param
         self.ppo_epoch = args.ppo_epoch
@@ -32,8 +33,6 @@ class R_MAPPO_MGDA():
         self.entropy_coef = args.entropy_coef
         self.max_grad_norm = args.max_grad_norm       
         self.huber_delta = args.huber_delta
-        self.use_mgda = args.use_mgda
-        self.mgda_eps = args.mgda_eps
 
         self._use_recurrent_policy = args.use_recurrent_policy
         self._use_naive_recurrent = args.use_naive_recurrent_policy
@@ -50,7 +49,7 @@ class R_MAPPO_MGDA():
         if self._use_popart:
             self.value_normalizer = self.policy.critic.v_out
         elif self._use_valuenorm:
-            self.value_normalizer = ValueNorm(self.policy.num_agents).to(self.device)
+            self.value_normalizer = ValueNorm(self.policy.num_agents, device=device).to(self.device)
         else:
             self.value_normalizer = None
 
@@ -58,7 +57,7 @@ class R_MAPPO_MGDA():
         """
         Calculate value function loss.
         :param values: (torch.Tensor) value function predictions.
-        :param value_preds_batch: (torch.Tensor) "old" value  predictions from data batch (used for value clip loss)
+        :param value_preds_batch: (torch.Tensor) "old" value predictions from data batch (used for value clip loss)
         :param return_batch: (torch.Tensor) reward to go returns.
         :param active_masks_batch: (torch.Tensor) denotes if agent is active or dead at a given timesep.
 
@@ -98,8 +97,15 @@ class R_MAPPO_MGDA():
         # assert imp_weights.shape == adv_targ[..., a].shape, "{} {}".format(imp_weights.shape, adv_targ[..., a].shape)
         # print(adv_targ.shape) # torch.Size([10000, 1]) mappo, torch.Size([10000, 2]) rmappo
 
-        adv_targ = adv_targ[..., a].unsqueeze(-1)
-        assert adv_targ.shape == imp_weights.shape
+        if self.agent_id is not None:
+            assert isinstance(a, int)
+            adv_targ = adv_targ[..., a].unsqueeze(-1)
+        else:
+            assert adv_targ.shape[0] == a.shape[0]
+            assert len(adv_targ.shape) == 2 and len(a.shape) == 2
+            a = torch.from_numpy(a).to(self.device)
+            adv_targ = torch.gather(adv_targ, -1, a)
+        assert adv_targ.shape == imp_weights.shape, f"{adv_targ.shape} {imp_weights.shape}"
         assert imp_weights.shape == adv_targ.shape
         surr1 = imp_weights * adv_targ
         surr2 = torch.clamp(imp_weights, 1.0 - self.clip_param, 1.0 + self.clip_param) * adv_targ
@@ -152,88 +158,44 @@ class R_MAPPO_MGDA():
                                                                               masks_batch, 
                                                                               available_actions_batch,
                                                                               active_masks_batch)
-        
+
         n_agents = values.shape[-1]
         # actor update
+        assert action_log_probs.shape == old_action_log_probs_batch.shape
         imp_weights = torch.exp(action_log_probs - old_action_log_probs_batch)
-        gradnorm = []
-        policy_grads = {}
-        for a in range(n_agents):
 
-            self.policy.actor_optimizer.zero_grad()
+        self.policy.actor_optimizer.zero_grad()
 
-            # surr1 = imp_weights * adv_targ[..., a]
-            # surr2 = torch.clamp(imp_weights, 1.0 - self.clip_param, 1.0 + self.clip_param) * adv_targ
+        # surr1 = imp_weights * adv_targ[..., a]
+        # surr2 = torch.clamp(imp_weights, 1.0 - self.clip_param, 1.0 + self.clip_param) * adv_targ
 
-            # if self._use_policy_active_masks:
-            #     policy_action_loss = (-torch.sum(torch.min(surr1, surr2),
-            #                                     dim=-1,
-            #                                     keepdim=True) * active_masks_batch).sum() / active_masks_batch.sum()
-            # else:
-            #     policy_action_loss = -torch.sum(torch.min(surr1, surr2), dim=-1, keepdim=True).mean()
+        # if self._use_policy_active_masks:
+        #     policy_action_loss = (-torch.sum(torch.min(surr1, surr2),
+        #                                     dim=-1,
+        #                                     keepdim=True) * active_masks_batch).sum() / active_masks_batch.sum()
+        # else:
+        #     policy_action_loss = -torch.sum(torch.min(surr1, surr2), dim=-1, keepdim=True).mean()
 
-            # policy_loss = policy_action_loss
+        # policy_loss = policy_action_loss
 
-            # self.policy.actor_optimizer.zero_grad()
-
-            # if update_actor:
-            #     (policy_loss - dist_entropy * self.entropy_coef).backward(retain_graph=True)
-
-            # if self._use_max_grad_norm:
-            #     actor_grad_norm = nn.utils.clip_grad_norm_(self.policy.actor.parameters(), self.max_grad_norm)
-            policy_loss = self.ppo_loss(a, imp_weights, adv_targ, active_masks_batch, dist_entropy)
-            policy_loss.backward(retain_graph=True)
-            gradnorm.append(get_gard_norm(self.policy.actor.parameters()))
-
-            policy_grads[a] = []
-
-            for param in self.policy.actor.parameters():
-                if param.grad is not None:
-                    policy_grads[a].append(Variable(param.grad.data.clone(), requires_grad=False))
-
-        # print('='*10)
-        # print(gradnorm)
-        # print('='*10)
-        if not self.use_mgda:
-            filter_grad_indx = [i for i in range(len(policy_grads)) if gradnorm[i] > self.mgda_eps]
-            # if len(filter_grad_indx) < len(policy_grads): 
-                # print(f"Filter: {len(policy_grads) - len(filter_grad_indx)} grad")
-        else :
-            filter_grad_indx = range(n_agents)
-        # if len(filter_grad_indx) < len(policy_grads): 
-        #     print(f"Filter: {len(policy_grads) - len(filter_grad_indx)} grad")
-
-        # gn = gradient_normalizers(policy_grads, None, 'l2')
-        # for t in filter_grad_indx:
-        #     for gr_i in range(len(policy_grads[t])):
-        #         policy_grads[t][gr_i] = policy_grads[t][gr_i] / gn[t]
-            
-        # Frank-Wolfe iteration to compute scales.
-        sol, _ = MinNormSolver.find_min_norm_element([policy_grads[t] for t in filter_grad_indx])
-        # sol = np.ones(10) / len(filter_grad_indx)
-        # print("sol", sol)
         # self.policy.actor_optimizer.zero_grad()
-        grads = policy_grads[0]
-        j = 0
-        init = True
-        for i in filter_grad_indx:
-            for g1, g2 in zip(grads, policy_grads[i]):
-                if init:
-                    g1 = sol[j] * g2
-                    init = False
-                else:
-                    g1 += sol[j] * g2
-            j += 1
+
+        # if update_actor:
+        #     (policy_loss - dist_entropy * self.entropy_coef).backward(retain_graph=True)
+
+        # if self._use_max_grad_norm:
+        #     actor_grad_norm = nn.utils.clip_grad_norm_(self.policy.actor.parameters(), self.max_grad_norm)
+
+        # Only optimize the agent id
         
-        i = 0
-        for param in self.policy.actor.parameters():
-            if param.grad is not None:
-                param.grad = grads[i]
-                i += 1
-        assert i == len(grads)
-        # for a in range(n_agents):
-        #     loss = loss + scale[a]*self.ppo_loss(a, imp_weights, adv_targ, active_masks_batch, dist_entropy)
-        # loss.backward()
+        if self.agent_id is not None:
+            policy_loss = self.ppo_loss(self.agent_id, imp_weights, adv_targ, active_masks_batch, dist_entropy)
+        else:
+            policy_loss = self.ppo_loss(agent_id, imp_weights, adv_targ, active_masks_batch, dist_entropy)
+        policy_loss.backward()
+
+        # self.policy.actor_optimizer.zero_grad()
+
         actor_grad_norm = get_gard_norm(self.policy.actor.parameters())
         self.policy.actor_optimizer.step()
 
@@ -251,12 +213,7 @@ class R_MAPPO_MGDA():
 
         self.policy.critic_optimizer.step()
 
-        other = {
-            "min_grad_norm": np.min(gradnorm),
-            "max_grad_norm": np.max(gradnorm)
-        }
-
-        return value_loss, critic_grad_norm, policy_loss, dist_entropy, actor_grad_norm, imp_weights, other
+        return value_loss, critic_grad_norm, policy_loss, dist_entropy, actor_grad_norm, imp_weights
 
     def train(self, buffer, update_actor=True):
         """
@@ -286,8 +243,6 @@ class R_MAPPO_MGDA():
         train_info['actor_grad_norm'] = 0
         train_info['critic_grad_norm'] = 0
         train_info['ratio'] = 0
-        train_info['min_grad_norm'] = 0
-        train_info['max_grad_norm'] = 0
 
         for _ in range(self.ppo_epoch):
             if self._use_recurrent_policy:
@@ -299,7 +254,7 @@ class R_MAPPO_MGDA():
 
             for sample in data_generator:
 
-                value_loss, critic_grad_norm, policy_loss, dist_entropy, actor_grad_norm, imp_weights, others \
+                value_loss, critic_grad_norm, policy_loss, dist_entropy, actor_grad_norm, imp_weights \
                     = self.ppo_update(sample, update_actor)
 
                 train_info['value_loss'] += value_loss.item()
@@ -308,8 +263,6 @@ class R_MAPPO_MGDA():
                 train_info['actor_grad_norm'] += actor_grad_norm
                 train_info['critic_grad_norm'] += critic_grad_norm
                 train_info['ratio'] += imp_weights.mean()
-                train_info['min_grad_norm'] += others['min_grad_norm']
-                train_info["max_grad_norm"] += others['max_grad_norm']
 
         num_updates = self.ppo_epoch * self.num_mini_batch
 

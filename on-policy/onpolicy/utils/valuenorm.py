@@ -72,6 +72,8 @@ class ValueNorm(nn.Module):
         input_vector = input_vector.to(**self.tpdv)
 
         mean, var = self.running_mean_var()
+        device = input_vector.device
+        mean, var = mean.to(device), var.to(device)
         out = input_vector * torch.sqrt(var)[(None,) * self.norm_axes] + mean[(None,) * self.norm_axes]
         
         out = out.cpu().numpy()

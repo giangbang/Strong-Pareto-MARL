@@ -1,6 +1,5 @@
     
 import time
-import wandb
 import os
 import numpy as np
 from itertools import chain
@@ -23,7 +22,7 @@ class MPERunner(Runner):
         start = time.time()
         episodes = int(self.num_env_steps) // self.episode_length // self.n_rollout_threads
 
-        for episode in range(episodes):
+        for episode in range(1, episodes+1):
             if self.use_linear_lr_decay:
                 for agent_id in range(self.num_agents):
                     self.trainer[agent_id].policy.lr_decay(episode, episodes)
@@ -31,7 +30,7 @@ class MPERunner(Runner):
             for step in range(self.episode_length):
                 # Sample actions
                 values, actions, action_log_probs, rnn_states, rnn_states_critic, actions_env = self.collect(step)
-                    
+
                 # Obser reward and next obs
                 obs, rewards, dones, infos = self.envs.step(actions_env)
 
@@ -43,7 +42,7 @@ class MPERunner(Runner):
             # compute return and update network
             self.compute()
             train_infos = self.train()
-            
+
             # post process
             total_num_steps = (episode + 1) * self.episode_length * self.n_rollout_threads
             
@@ -65,14 +64,18 @@ class MPERunner(Runner):
                                 int(total_num_steps / (end - start))))
 
                 if self.env_name == "MPE":
+                    idv_rews = []
                     for agent_id in range(self.num_agents):
-                        idv_rews = []
+                        rews = []
                         for info in infos:
-                            for count, info in enumerate(infos):
-                                if 'individual_reward' in infos[count][agent_id].keys():
-                                    idv_rews.append(infos[count][agent_id].get('individual_reward', 0))
-                        train_infos[agent_id].update({'individual_rewards': np.mean(idv_rews)})
-                        train_infos[agent_id].update({"average_episode_rewards": np.mean(self.buffer[agent_id].rewards) * self.episode_length})
+                            if 'cumulative_rewards' in info[agent_id].keys():
+                                rews.append( info[agent_id]['cumulative_rewards'] )
+                        idv_rews.append(np.mean(rews))
+                        train_infos[agent_id].update({"average_episode_rewards": idv_rews[agent_id]})
+                        print("average episode rewards of agent{} is {}".format(agent_id, train_infos[agent_id]["average_episode_rewards"]))
+
+                    avg_rw_all_agents = np.mean(idv_rews)
+                    print("Avg rewards all agents:", avg_rw_all_agents)
                 self.log_train(train_infos, total_num_steps)
 
             # eval
@@ -151,6 +154,8 @@ class MPERunner(Runner):
 
     def insert(self, data):
         obs, rewards, dones, infos, values, actions, action_log_probs, rnn_states, rnn_states_critic = data
+        rewards = np.tile(rewards, (1, self.num_agents, 1)) \
+            .reshape(rewards.shape[0], self.num_agents, self.num_agents)
 
         rnn_states[dones == True] = np.zeros(((dones == True).sum(), self.recurrent_N, self.hidden_size), dtype=np.float32)
         rnn_states_critic[dones == True] = np.zeros(((dones == True).sum(), self.recurrent_N, self.hidden_size), dtype=np.float32)
@@ -191,7 +196,7 @@ class MPERunner(Runner):
                 eval_action, eval_rnn_state = self.trainer[agent_id].policy.act(np.array(list(eval_obs[:, agent_id])),
                                                                                 eval_rnn_states[:, agent_id],
                                                                                 eval_masks[:, agent_id],
-                                                                                deterministic=True)
+                                                                                deterministic=self.all_args.deterministic_eval)
 
                 eval_action = eval_action.detach().cpu().numpy()
                 # rearrange action
@@ -229,12 +234,16 @@ class MPERunner(Runner):
         eval_episode_rewards = np.array(eval_episode_rewards)
         
         eval_train_infos = []
+        eval_means = []
         for agent_id in range(self.num_agents):
             eval_average_episode_rewards = np.mean(np.sum(eval_episode_rewards[:, :, agent_id], axis=0))
             eval_train_infos.append({'eval_average_episode_rewards': eval_average_episode_rewards})
             print("eval average episode rewards of agent%i: " % agent_id + str(eval_average_episode_rewards))
+            self.writter.add_scalar(f"eval_episode_rewards_agent{agent_id}", eval_average_episode_rewards, total_num_steps)
+            eval_means.append(eval_average_episode_rewards)
+        eval_means = np.mean(eval_means)
+        self.writter.add_scalar("eval_episode_rewards", eval_means, total_num_steps)
 
-        self.log_train(eval_train_infos, total_num_steps)  
 
     @torch.no_grad()
     def render(self):        

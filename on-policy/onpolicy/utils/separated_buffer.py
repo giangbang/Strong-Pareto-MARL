@@ -46,11 +46,15 @@ class SeparatedReplayBuffer(object):
         else:
             self.available_actions = None
 
-        act_shape = get_shape_from_act_space(act_space)
+        log_act_shape = act_shape = get_shape_from_act_space(act_space)
+        if act_space.__class__.__name__ == "MultiDiscrete":
+            log_act_shape = 1
 
         self.actions = np.zeros((self.episode_length, self.n_rollout_threads, act_shape), dtype=np.float32)
-        self.action_log_probs = np.zeros((self.episode_length, self.n_rollout_threads, act_shape), dtype=np.float32)
+        self.action_log_probs = np.zeros((self.episode_length, self.n_rollout_threads, log_act_shape), dtype=np.float32)
         self.rewards = np.zeros((self.episode_length, self.n_rollout_threads, self.n_agents), dtype=np.float32)
+
+        print("action log prob shape in buffer", self.action_log_probs.shape)
         
         self.masks = np.ones((self.episode_length + 1, self.n_rollout_threads, 1), dtype=np.float32)
         self.bad_masks = np.ones_like(self.masks)

@@ -704,6 +704,10 @@ class DummyVecEnv(ShareVecEnv):
 
 
 class ShareDummyVecEnv(ShareVecEnv):
+    """
+    This vec env wrapper include shared observations
+    it expects the underlying envs to also implement the shared obs
+    """
     def __init__(self, env_fns):
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]

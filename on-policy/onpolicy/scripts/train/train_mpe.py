@@ -69,10 +69,12 @@ def main(args):
         print("u are choosing to use rmappo, we set use_recurrent_policy to be True")
         all_args.use_recurrent_policy = True
         all_args.use_naive_recurrent_policy = False
-    elif all_args.algorithm_name == "mappo":
+    elif all_args.algorithm_name == "mappo" or "mappo_mgda" in all_args.algorithm_name:
         print("u are choosing to use mappo, we set use_recurrent_policy & use_naive_recurrent_policy to be False")
         all_args.use_recurrent_policy = False 
         all_args.use_naive_recurrent_policy = False
+        if all_args.algorithm_name == "mappo_mgdapp":
+            all_args.use_mgda = False
     elif all_args.algorithm_name == "ippo":
         print("u are choosing to use ippo, we set use_centralized_V to be False")
         all_args.use_centralized_V = False
@@ -140,6 +142,13 @@ def main(args):
     envs = make_train_env(all_args)
     eval_envs = make_eval_env(all_args) if all_args.use_eval else None
     num_agents = all_args.num_agents
+
+    tmp_env = MPEEnv(all_args)
+    print('='*10)
+    print(tmp_env)
+    print(tmp_env.action_space)
+    print(tmp_env.action_space[0].sample())
+    print('='*10)
 
     config = {
         "all_args": all_args,

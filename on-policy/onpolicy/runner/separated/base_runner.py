@@ -218,8 +218,8 @@ class Runner(object):
                 if self.use_wandb:
                     import wandb
                     wandb.log({agent_k: v}, step=total_num_steps)
-                else:
-                    self.writter.add_scalar(agent_k, v, total_num_steps)
+                
+                self.writter.add_scalar(agent_k, v, total_num_steps)
 
     def log_env(self, env_infos, total_num_steps):
         for k, v in env_infos.items():
