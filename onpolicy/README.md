@@ -9,9 +9,9 @@ This part is based on the code from the paper "The Surprising Effectiveness of P
 ### Experiments
 To run the experiments, `cd` to the appropriate script folders:
 
-- `gridworld`: see scripts in the folder `train/train_gridworld_scripts`. 
+- `gridworld`: see scripts in the folder `scripts/train_gridworld_scripts`. 
 
-- `MPE`: see scripts in the folder `train/train_mpe_scripts`
+- `MPE`: see scripts in the folder `scripts/train_mpe_scripts`
 
 ### Results
 #### gridworld
