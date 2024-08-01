@@ -24,7 +24,9 @@ dependencies = [
     "autograd",
     "matplotlib",
     "cvxpy",
-    "matplotlib-label-lines"
+    "matplotlib-label-lines",
+    "tensorboardX",
+    "setproctitle"
 ]
 requires-python = ">=3.0"
 
