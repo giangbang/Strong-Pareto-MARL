@@ -14,18 +14,16 @@ in ICML 2020 ([link](https://github.com/dbmptr/EPOSearch/tree/master/toy_experim
 The `solvers` module contains different solvers:
 1. Linear Sclarization: `linscalar.py`
 2. MGDA based MOO: `moo_mtl.py` and `min_norm_solvers_numpy.py`
-3. Pareto MTL: 
-	- cpu: `pmtl.py` and `min_norm_solvers_numpy.py`
-	- gpu: `pmtl_gpu.py` and `min_norm_solvers.py`
+3. Pareto MTL: `pmtl.py` and `pmtl_gpu.py`
 4. EPO Search: `epo_search.py` and `epo_lp.py`
-5. MGDA++
-6. PCGrad
+5. MGDA++: `mgdapp.py`
+6. PCGrad: `pcgrad.py`
 
 ### Experiments
 
-`pareto_visualize.py` compare the convergence of MGDA with/without Adam and MGDA++
+`pareto_visualize.py` compare the convergence of MGDA with/without Adam and MGDA++.
 
-`pareto_visualize2.py` compare the convergence of MGDA and MGDA++ with standard setup without presence of weak Pareto optimal solutions
+`pareto_visualize2.py` compare the convergence of MGDA and MGDA++ with standard setup without presence of weak Pareto optimal solutions.
 
-`pareto_visualize2.py` compare how MGDA and MGDA++ converge to different points
+`pareto_visualize2.py` compare how MGDA and MGDA++ converge to different solutions.
 
