@@ -24,6 +24,7 @@ dependencies = [
     "autograd",
     "matplotlib",
     "cvxpy",
+    "cvxopt",
     "matplotlib-label-lines",
     "tensorboardX",
     "setproctitle"
