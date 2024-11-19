@@ -1,6 +1,6 @@
 # Toward Strong Pareto MARL
 
-Source code for the paper "Toward Finding Strong Pareto Optimal Policies in Multi-Agent Reinforcement Learning"
+Source code for the paper "Toward Finding Strong Pareto Optimal Policies in Multi-Agent Reinforcement Learning" [[arxiv](https://arxiv.org/abs/2410.19372)]
 
 ## Installation
 
